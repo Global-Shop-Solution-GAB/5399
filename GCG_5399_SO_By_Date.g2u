@@ -1,0 +1,325 @@
+Program.Sub.ScreenSU.Start
+Gui.fSoByDate..Create
+Gui.fSoByDate..Caption("Sales Orders by Date Range")
+Gui.fSoByDate..Size(16185,12225)
+Gui.fSoByDate..MinX(0)
+Gui.fSoByDate..MinY(0)
+Gui.fSoByDate..Position(0,0)
+Gui.fSoByDate..BackColor(-2147483633)
+Gui.fSoByDate..MousePointer(0)
+Gui.fSoByDate..Event(UnLoad,FSObyDate_UnLoad)
+Gui.fSoByDate.gsgcSo.Create(GsGridControl)
+Gui.fSoByDate.gsgcSo.Size(15945,11010)
+Gui.fSoByDate.gsgcSo.Position(0,675)
+Gui.fSoByDate.gsgcSo.Anchor(15)
+Gui.fSoByDate.gsgcSo.Event(RowCellClick,gsgcSo_RowCellClick)
+Gui.fSoByDate.dtpFromDate.Create(DatePicker)
+Gui.fSoByDate.dtpFromDate.Size(1935,285)
+Gui.fSoByDate.dtpFromDate.Position(1755,210)
+Gui.fSoByDate.lblPartsCreatedSince.Create(Label,"From Date Created",True,1695,255,0,45,300,True,0,"Arial",8,-2147483633,0)
+Gui.fSoByDate.cmdRefresh.Create(Button)
+Gui.fSoByDate.cmdRefresh.Size(1065,375)
+Gui.fSoByDate.cmdRefresh.Position(7485,180)
+Gui.fSoByDate.cmdRefresh.Caption("Refresh")
+Gui.fSoByDate.cmdRefresh.Event(Click,cmdRefresh_Click)
+Gui.fSoByDate.lblPartsCreatedSince2.Create(Label,"To Date Created",True,1590,255,0,3870,300,True,0,"Arial",8,-2147483633,0)
+Gui.fSoByDate.dtpToDate.Create(DatePicker)
+Gui.fSoByDate.dtpToDate.Size(1935,285)
+Gui.fSoByDate.dtpToDate.Position(5385,210)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.bReset.Declare(Boolean, False)
+V.Global.bTry.Declare(Boolean, False)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'GCG_Cardinal_newPartsDashboard.g2u
+'Trey S
+'01-02-2018
+'For Cardinal Systems
+'This is a quick dashboard made for Cardinal's go live
+'It loads all parts, and can then show parts created since a certain date
+
+F.Intrinsic.Control.CallSub(CreateContextMenu)
+F.Intrinsic.Control.CallSub(LoadData)
+F.Intrinsic.Control.CallSub(LoadGrid)
+F.Intrinsic.Control.CallSub(Deserialize)
+
+gui.fSoByDate..Show
+Program.Sub.Main.End
+
+Program.Sub.CreateContextMenu.Start
+gui.fSoByDate..ContextMenuCreate("ctxSO")
+gui.fSoByDate.gsgcSo.ContextMenuAttach("ctxSO")
+gui.fSoByDate..ContextMenuAddItem("ctxSO", "Reset", 0, "Reset Formatting")
+gui.fSoByDate..ContextMenuSetItemEventHandler("ctxSO", "Reset", "ctxReset")
+gui.fSoByDate..ContextMenuAddItem("ctxSO", "Export", 0, "Export")
+gui.fSoByDate..ContextMenuSetItemEventHandler("ctxSO", "Export", "ctxExport")
+
+Program.Sub.CreateContextMenu.End
+
+Program.Sub.LoadData.Start
+V.Local.sSQL.Declare(String)
+v.Local.dtoDate.Declare
+v.Local.dFromDate.Declare
+v.Local.dtoDate.Set(v.Screen.fSoByDate!dtpToDate.value)
+v.Local.dFromDate.Set(v.Screen.fSoByDate!dtpFromDate.value)
+
+F.Intrinsic.Control.If(V.DataTable.DTSo.Exists)
+	F.Intrinsic.Control.CallSub(Serialize)
+F.Intrinsic.Control.EndIf
+
+f.Intrinsic.String.Build("Select * from ((select a.order_no,b.Customer,c.Name_CUstomer,sum(a.extension_order) as Price,b.date_order,b.date_due,RTRIM('Open') as Status from V_ORDER_LINES a inner join V_order_header b on a.Order_no = b.order_No left outer join v_customer_master c on a .customer = c.customer where b.date_order >= '{0}' and b.date_order <= '{1}' group by a.order_no,b.customer,c.Name_customer,b.date_order,b.date_Due) union(select a.order_no,b.Customer,c.Name_CUstomer,sum(a.extension_order) as Price,b.date_order,b.date_order_due as Date_due,RTRIM('Closed') as Status  from V_ORDER_HIST_LINE a inner join V_order_HIST_head b on a.Order_no = b.order_No left outer join v_customer_master c on a .customer = c.customer where b.date_order >= '{0}' and b.date_order <= '{1}' group by a.order_no,b.customer,c.Name_customer,b.date_order,b.date_order_due)) as X",v.Local.dFromDate.PervasiveDate,v.Local.dtoDate.PervasiveDate,v.Local.sSQL)
+
+
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+F.Data.DataTable.CreateFromSQL("DTSo", "Con", V.Local.sSQL, True)
+F.ODBC.Connection!Con.Close
+
+
+
+F.Data.DataView.Create("DTSo", "dvSo", 22)
+Program.Sub.LoadData.End
+
+Program.Sub.LoadGrid.Start
+gui.fSoByDate.gsgcSo.SuspendLayout
+
+gui.fSoByDate.gsgcSo.AddGridviewFromDataview("gvSO", "DTSo", "dvSo")
+
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","order_no","headerforecolor", v.Color.PRI-GSS-00)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","Customer","headerforecolor", v.Color.PRI-GSS-00)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","Name_CUstomer","headerforecolor", v.Color.PRI-GSS-00)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","Price","headerforecolor", v.Color.PRI-GSS-00)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","date_order","headerforecolor", v.Color.PRI-GSS-00)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","date_Due","headerforecolor", v.Color.PRI-GSS-00)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","Status","headerforecolor", v.Color.PRI-GSS-00)
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "order_no", "HeaderFontBold", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Customer", "HeaderFontBold", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Name_CUstomer", "HeaderFontBold", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Price", "HeaderFontBold", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_order", "HeaderFontBold", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_Due", "HeaderFontBold", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Status", "HeaderFontBold", True)
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "order_no", "ReadOnly", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Customer", "ReadOnly", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Name_CUstomer", "ReadOnly", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Price", "ReadOnly", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_order", "ReadOnly", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_Due", "ReadOnly", True)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Status", "ReadOnly", True)
+
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "order_no", "AllowEdit", False)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Customer", "AllowEdit", False)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Name_CUstomer", "AllowEdit", False)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Price", "AllowEdit", False)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_order", "AllowEdit", False)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_Due", "AllowEdit", False)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Status", "AllowEdit", False)
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "order_no", "MinWidth", 60)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Customer", "MinWidth", 60)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Name_CUstomer", "MinWidth", 150)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Price", "MinWidth", 100)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_order", "MinWidth", 80)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_Due", "MinWidth", 80)
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Status", "MinWidth", 60)
+
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "order_no", "Caption", "Order No")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Customer", "Caption", "Cust ID")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Name_CUstomer", "Caption", "Customer Name")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Price", "Caption", "Total Sale")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_order", "Caption", "Order Date")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_Due", "Caption", "Date Due")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Status", "Caption", "Status")
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_order", "DisplayCustomDateTime", "d")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_Due", "DisplayCustomDateTime", "d")
+
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_order", "CellHAlignment", "Center")
+gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "date_Due", "CellHAlignment", "Center")
+
+Gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","Price","EditMaskType","numeric")
+Gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","Price","EditMask","$######0.00")
+Gui.fSoByDate.gsgcSo.SetColumnProperty("gvSO","Price","EditMaskAsDisplayFormat",true)
+
+GUI.fSoByDate.gsgcSo.SetColumnProperty("gvSO", "Order_no", "CellForeColor", "Blue")
+
+gui.fSoByDate.gsgcSo.AddSummaryItem("gvSO","Price","Total Price","Sum","Total: ","","C")
+
+gui.fSoByDate.gsgcSo.SetGridviewProperty("gvSO", "EnableAppearanceOddRow", True)
+
+gui.fSoByDate.gsgcSo.MainView("gvSO")
+gui.fSoByDate.gsgcSo.ResumeLayout
+Program.Sub.LoadGrid.End
+
+Program.Sub.cmdRefresh_Click.Start
+V.Local.sFilter.Declare(String)
+
+gui.fSoByDate.cmdRefresh.Enabled(False)
+gui.fSoByDate.gsgcSo.SuspendLayout
+F.Intrinsic.Control.CallSub(ctxFullRefresh)
+gui.fSoByDate.gsgcSo.ResumeLayout
+gui.fSoByDate.cmdRefresh.Enabled(True)
+Program.Sub.cmdRefresh_Click.End
+
+Program.Sub.ctxReset.Start
+gui.fSoByDate.gsgcSo.Visible(False)
+gui.fSoByDate.gsgcSo.SuspendLayout
+
+F.ODBC.Connection!Com.OpenCommonConnection
+
+F.ODBC.Connection!Com.Execute("delete from GS_REGISTRY where REG_ID = 20190103")
+
+F.ODBC.Connection!Com.Close
+
+V.Global.bReset.Set(True)
+F.Intrinsic.Control.CallSub(ctxFullRefresh)
+V.Global.bReset.Set(False)
+
+gui.fSoByDate.gsgcSo.ResumeLayout
+gui.fSoByDate.gsgcSo.Visible(True)
+Program.Sub.ctxReset.End
+
+Program.Sub.ctxFullRefresh.Start
+gui.fSoByDate..Enabled(False)
+
+F.Intrinsic.Control.If(V.Global.bReset.Not)
+	F.Intrinsic.Control.CallSub(Serialize)
+F.Intrinsic.Control.EndIf
+F.Data.DataTable.Close("DTSo")
+V.Global.bReset.Set(False)
+F.Intrinsic.Control.CallSub(LoadData)
+F.Intrinsic.Control.CallSub(LoadGrid)
+F.Intrinsic.Control.CallSub(Deserialize)
+
+gui.fSoByDate..Enabled(True)
+Program.Sub.ctxFullRefresh.End
+
+Program.Sub.Serialize.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Local.sSerialize.Declare
+F.Intrinsic.Control.If(V.DataTable.DTSo.Exists, =, False)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+gui.fSoByDate.gsgcSo.Serialize("gvSO", V.Local.sSerialize)
+F.Global.Registry.AddValue(V.Caller.User, V.Caller.CompanyCode, "gvSO", 20190103, 1000, False, "Serialize", False, 0, -999.0, 1/1/1980, 12:00:00 AM, V.Local.sSerialize)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Ambient.ScriptPath, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.Serialize.End
+
+Program.Sub.Deserialize.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Local.sSerialize.Declare
+
+'Delete old registry records
+F.Global.Registry.ReadValue(V.Caller.User, V.Caller.CompanyCode, "gvSO", 20190103, 0,5,"",V.Local.sSerialize)
+F.Intrinsic.Control.If(V.Local.sSerialize,<>,"")
+	F.ODBC.Connection!common.OpenConnection(V.Ambient.Ccon, V.Ambient.Cuser, V.Ambient.Cpass)
+	F.ODBC.Connection!common.Execute("delete from GS_REGISTRY where REG_ID = 20190102")
+	F.ODBC.Connection!common.Close
+F.Intrinsic.Control.EndIf
+
+F.Global.Registry.ReadValue(V.Caller.User,V.Caller.CompanyCode,"gvSO", "20190103" ,1000,   6, "", V.Local.sSerialize)
+F.Intrinsic.Control.If(V.Local.sSerialize.Trim,<>,"")
+	gui.fSoByDate.gsgcSo.Deserialize(V.Local.sSerialize)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+
+	F.Intrinsic.Control.If(V.Global.bTry)
+		F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Ambient.ScriptPath, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber,V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.Else
+		'if an additional column is added but the registry record is still there, it will crash, so here we try once to do a reset
+		'this for while we're still working on it mainly
+		V.Global.bTry.Set(True)
+		F.Intrinsic.Control.CallSub(ctxFullRefresh)
+	F.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.EndTry
+Program.Sub.Deserialize.End
+
+Program.Sub.ctxExport.Start
+v.Local.sDate.Declare(String)
+v.Local.sTime.Declare(String)
+v.Local.iCount.Declare
+v.Local.sMsg.Declare(String)
+v.Local.bCheck.Declare(boolean)
+V.Local.sFileExport.Declare(String)
+
+gui.fSoByDate.gsgcSo.GetRowCount("gvSO",v.Local.iCount)
+Function.Intrinsic.Control.BlockEvents
+gui.fSoByDate..Enabled(false)
+f.Intrinsic.Control.If(v.Local.iCount,=,0)
+	f.Intrinsic.UI.Msgbox("No rows in grid to export!")
+	gui.fSoByDate..SetFocus
+	gui.fSoByDate..Enabled(True)
+	Function.Intrinsic.Control.UNBlockEvents
+	F.Intrinsic.Control.ExitSub
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.String.Format(v.Ambient.Date,"MMDDYYYY",v.Local.sDate)
+f.Intrinsic.String.Format(v.Ambient.Now,"HhNn",v.Local.sTime)
+
+F.Intrinsic.String.Build("{0}\SO_by_Date_{1}_{2}.xlsx",V.Caller.LocalGssTempDir,v.Local.sDate.trim,v.Local.sTime.Trim,V.Local.sFileExport)
+f.Intrinsic.File.Exists(v.Local.sFileExport,v.Local.bCheck)
+F.Intrinsic.Control.If(v.Local.bCheck,=,true)
+	f.Intrinsic.File.DeleteFile(v.Local.sFileExport)
+F.Intrinsic.Control.EndIf
+gui.fSoByDate.gsgcSo.Export(V.Local.sFileExport,"xlsx")
+f.Intrinsic.File.Exists(v.Local.sFileExport,v.Local.bCheck)
+
+F.Intrinsic.Control.If(v.Local.bCheck,=,False)
+	f.Intrinsic.UI.Msgbox("Export cancelled (File does not exist)")
+	gui.fSoByDate..SetFocus
+	gui.fSoByDate..Enabled(True)
+	Function.Intrinsic.Control.UNBlockEvents
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+F.Intrinsic.Task.ShellExec(0,"",V.Local.sFileExport,"","",1)
+
+Function.Intrinsic.Control.UNBlockEvents
+gui.fSoByDate..SetFocus
+gui.fSoByDate..Enabled(True)
+F.Intrinsic.Control.ExitSub
+Program.Sub.ctxExport.End
+
+Program.Sub.fSoByDate_UnLoad.Start
+F.Intrinsic.Control.CallSub(Serialize)
+F.Intrinsic.Control.End
+Program.Sub.fSoByDate_UnLoad.End
+
+Program.Sub.gsgcSo_RowCellClick.Start
+V.Local.sSO.Declare(String)
+V.Local.sCustomer.Declare(String)
+V.Local.sParams.Declare(String)
+
+F.Intrinsic.Control.If(V.Args.Clicks, >, 1, and, V.Args.Column.Trim, =, "order_no")
+	GUI.fSoByDate..Enabled(False)
+	GUI.fSoByDate.gsgcSo.GetCellValueByColumnName("gvSO", "order_no", V.Args.RowIndex, V.Local.sSO)
+	GUI.fSoByDate.gsgcSo.GetCellValueByColumnName("gvSO", "Customer", V.Args.RowIndex, V.Local.sCustomer)
+	
+	F.Intrinsic.String.Build("{0}!*!V!*!{1}", V.Local.sSO, V.Local.sCustomer, V.Local.sParams)
+	F.Global.General.CallWrapperSync(200000, V.Local.sParams)
+	GUI.fSoByDate..Enabled(True)
+F.Intrinsic.Control.EndIf
+Program.Sub.gsgcSo_RowCellClick.End
+
+
